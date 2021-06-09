@@ -22,6 +22,7 @@ public class MethodHandlesBenchmark
 
     @Param({"BOUND_INVOKE", "UNBOUND_INVOKE"})
     public static String STRATEGY;
+    private final MethodHandle methodHandle;
 
     public static class Endpoint
     {
@@ -31,14 +32,19 @@ public class MethodHandlesBenchmark
         }
     }
 
+    public MethodHandlesBenchmark() {
+        try {
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+            Method method = Endpoint.class.getMethod("onOpen", byte[].class);
+            methodHandle = lookup.unreflect(method);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Benchmark
     public void test() throws Throwable
     {
-        // Generate the base MethodHandle (we store this in a MetaData map and reuse every time).
-        MethodHandles.Lookup lookup = MethodHandles.lookup();
-        Method method = Endpoint.class.getMethod("onOpen", byte[].class);
-        MethodHandle methodHandle = lookup.unreflect(method);
-
         for (int i = 0; i < 5; i++)
         {
             // When we open a connection we bind the MethodHandle to a new Endpoint.
