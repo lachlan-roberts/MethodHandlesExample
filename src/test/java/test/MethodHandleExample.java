@@ -10,6 +10,7 @@ import org.openjdk.jmh.infra.Blackhole;
 public class MethodHandleExample
 {
     private static final Random random = new Random();
+    private static final boolean BIND_METHOD_HANDLE = true;
 
     public static class Endpoint
     {
@@ -21,27 +22,24 @@ public class MethodHandleExample
 
     public static void main(String[] args) throws Throwable
     {
-        // Generate the base MethodHandle (we store this in a MetaData map and reuse every time).
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Method method = Endpoint.class.getMethod("onOpen", byte[].class);
         MethodHandle methodHandle = lookup.unreflect(method);
 
         while (true)
         {
-            // When we open a connection we bind the MethodHandle to a new Endpoint.
             Endpoint endpoint = new Endpoint();
-            MethodHandle specificHandle = methodHandle.bindTo(endpoint);
+            MethodHandle specificHandle = BIND_METHOD_HANDLE ? methodHandle.bindTo(endpoint) : methodHandle;
+
             for (int i = 0; i < 1000; i++)
             {
                 byte[] bytes = new byte[random.nextInt(99) + 1];
                 random.nextBytes(bytes);
 
-                // Invoke the MethodHandle bound to the endpoint.
-                specificHandle.invoke(bytes);
-
-                // If instead we invoke the MethodHandle without binding we avoid seeing spike on flamegraph.
-                // But it is less efficient (see benchmark).
-                // methodHandle.invoke(endpoint, bytes);
+                if (BIND_METHOD_HANDLE)
+                    specificHandle.invoke(bytes);
+                else
+                    methodHandle.invoke(endpoint, bytes);
             }
         }
     }
